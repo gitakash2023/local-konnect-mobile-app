@@ -1,4 +1,3 @@
-
 const axios = require("axios");
 
 // Function to handle API errors
@@ -7,8 +6,7 @@ const handleApiError = (error) => {
   throw new Error("An error occurred while communicating with the API");
 };
 
-
-
+// Ensure to define the BASE_URL
 // export const BASE_URL = "https://internal.vitsinco.com";
 
 // Function to retrieve all posts
@@ -24,7 +22,7 @@ export const _getAll = async (endpoint) => {
 // Function to create a new post
 export const _create = async (endpoint, postData) => {
   try {
-    console.log("Sending request to:", `${BASE_URL}/${endpoint}`);
+    console.log("Sending request to:", `${BASE_URL}${endpoint}`);
     const response = await axios.post(`${BASE_URL}${endpoint}`, postData);
     console.log("API Response:", response.data);
     return response.data;
@@ -35,7 +33,7 @@ export const _create = async (endpoint, postData) => {
 
 export const _createlogin = async (endpoint, postData) => {
   try {
-    console.log("Sending request to:", `${BASE_URL}/${endpoint}`);
+    console.log("Sending request to:", `${BASE_URL}${endpoint}`);
     const response = await axios.post(`${BASE_URL}${endpoint}`, postData);
     console.log("API Response:", response.data);
     return response.data;
@@ -55,20 +53,17 @@ export const _getById = async (endpoint, id) => {
   }
 };
 
-// Function to update a post
+// Function to update a post (ID passed as URL parameter)
 export const _update = async (endpoint, id, postData) => {
   console.log(postData);
 
   try {
     const response = await axios.put(
-      `${BASE_URL}${endpoint}`,
-      {
-        id,
-        ...postData,
-      },
+      `${BASE_URL}${endpoint}/${id}`, // ID passed as a URL parameter
+      postData, // Remaining data in the request body
       {
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type": "multipart/form-data", // Ensure correct content type if using FormData
         },
       }
     );
@@ -78,10 +73,10 @@ export const _update = async (endpoint, id, postData) => {
   }
 };
 
-// Function to delete a post by ID
+// Function to delete a post by ID (ID passed as URL parameter)
 export const _delete = async (endpoint, id) => {
   try {
-    await axios.delete(`${BASE_URL}${endpoint}`, { data: { id } });
+    await axios.delete(`${BASE_URL}${endpoint}/${id}`); // ID passed as a URL parameter
     return true;
   } catch (error) {
     handleApiError(error);
