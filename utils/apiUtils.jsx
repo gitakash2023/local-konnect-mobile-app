@@ -1,4 +1,5 @@
-const axios = require("axios");
+import axios from "axios";
+
 
 // Function to handle API errors
 const handleApiError = (error) => {
@@ -7,7 +8,7 @@ const handleApiError = (error) => {
 };
 
 // Ensure to define the BASE_URL
-// export const BASE_URL = "https://internal.vitsinco.com";
+export const BASE_URL = "https://job-portal-1-bdk6.onrender.com";
 
 // Function to retrieve all posts
 export const _getAll = async (endpoint) => {
@@ -31,16 +32,7 @@ export const _create = async (endpoint, postData) => {
   }
 };
 
-export const _createlogin = async (endpoint, postData) => {
-  try {
-    console.log("Sending request to:", `${BASE_URL}${endpoint}`);
-    const response = await axios.post(`${BASE_URL}${endpoint}`, postData);
-    console.log("API Response:", response.data);
-    return response.data;
-  } catch (error) {
-    handleApiError(error);
-  }
-};
+
 
 // Function to retrieve a single post by ID
 export const _getById = async (endpoint, id) => {

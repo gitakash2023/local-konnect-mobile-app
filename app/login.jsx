@@ -1,23 +1,71 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // Expo icons for Sign-in buttons
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing token and roles
+import { _create } from '../utils/apiUtils'; // Import utility function
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Login Error', 'Please fill in both fields.');
+      Alert.alert('Validation Error', 'Please enter both email and password.');
       return;
     }
-    console.log('Login clicked');
-    // Proceed with login logic
+
+    setLoading(true);
+
+    try {
+      const postData = { email, password };
+      const response = await _create('/api/admin/login-superadmin', postData);
+
+      console.log('Response from _create:', response);
+
+      if (response && response.token && response.user?.userType) {
+        const userType = response.user?.userType;
+  
+        // Store token and roles in AsyncStorage
+        await AsyncStorage.setItem('accessToken', response.token); // Correct key name
+        await AsyncStorage.setItem('userType', userType); // Correct key name
+
+        // Navigate based on user role
+        switch (userType) {
+          case 'superadmin':
+            router.push('/superadmin/(superadmintabs)');
+            break;
+          case 'admin':
+            router.push('/admin/(admintabs)');
+            break;
+          case 'user':
+            router.push('/user/(usertabs)');
+            break;
+          default:
+            console.warn('Unknown role:', userType);
+            Alert.alert('Login Error', 'Unknown user role!');
+            break;
+        }
+      } else {
+        Alert.alert('Login Error', 'Invalid credentials or response from server.');
+      }
+    } catch (error) {
+      console.error('Login Error:', error);
+      Alert.alert('Login Error', 'An error occurred during login.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const goToSignUp =
-  () => {
+  const goToSignUp = () => {
     router.push('signup'); // Navigate to Sign-Up screen
   };
 
@@ -47,8 +95,8 @@ const LoginScreen = () => {
       />
 
       {/* Login Button */}
-      <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Log In</Text>
+      <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? 'Logging In...' : 'Log In'}</Text>
       </TouchableOpacity>
 
       {/* Forgot Password Link */}
@@ -70,7 +118,9 @@ const LoginScreen = () => {
       {/* Sign Up Link */}
       <Text style={styles.signUpLink}>
         Don't have an account?{' '}
-        <Text style={styles.signUpText} onPress={goToSignUp}>Sign-up</Text>
+        <Text style={styles.signUpText} onPress={goToSignUp}>
+          Sign-up
+        </Text>
       </Text>
     </View>
   );
