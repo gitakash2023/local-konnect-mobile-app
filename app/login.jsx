@@ -1,127 +1,160 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Expo icons for Sign-in buttons
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing token and roles
-import { _create } from '../utils/apiUtils'; // Import utility function
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { _create } from '../utils/apiUtils';
 
 const LoginScreen = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Validation Error', 'Please enter both email and password.');
-      return;
-    }
+  const formik = useFormik({
+    initialValues: {
+      email: '',
+      password: '',
+    },
+    validationSchema: Yup.object({
+      email: Yup.string()
+        .email('Please enter a valid email')
+        .required('Email  is required'),
+      password: Yup.string().required('Password is required'),
+    }),
+    onSubmit: async (values) => {
+      console.log('Form Submitted with values: ', values);
 
-    setLoading(true);
+      try {
+        const response = await _create('/api/users/auth/login', values);
 
-    try {
-      const postData = { email, password };
-      const response = await _create('/api/admin/login-superadmin', postData);
+        if (response && response.token && response.user) {
+          const { token, user } = response;
+          const userType = user?.userType;
 
-      console.log('Response from _create:', response);
+          await AsyncStorage.setItem('accessToken', token);
+          await AsyncStorage.setItem('userType', userType);
 
-      if (response && response.token && response.user?.userType) {
-        const userType = response.user?.userType;
-  
-        // Store token and roles in AsyncStorage
-        await AsyncStorage.setItem('accessToken', response.token); // Correct key name
-        await AsyncStorage.setItem('userType', userType); // Correct key name
-
-        // Navigate based on user role
-        switch (userType) {
-          case 'superadmin':
-            router.push('/superadmin/(superadmintabs)');
-            break;
-          case 'admin':
-            router.push('/admin/(admintabs)');
-            break;
-          case 'user':
-            router.push('/user/(usertabs)');
-            break;
-          default:
-            console.warn('Unknown role:', userType);
-            Alert.alert('Login Error', 'Unknown user role!');
-            break;
+          switch (userType) {
+            case 'ADMIN':
+              router.push('/superadmin/(superadmintabs)');
+              break;
+            case 'ServiceProvider':
+              router.push('/admin/(ServiceProvider)');
+              break;
+            case 'User':
+              router.push('/user/(usertabs)');
+              break;
+            default:
+              console.warn('Unknown role:', userType);
+              Alert.alert('Login Error', 'Unknown user role!');
+              break;
+          }
+        } else {
+          Alert.alert('Login Error', 'Invalid credentials or response from server.');
         }
-      } else {
-        Alert.alert('Login Error', 'Invalid credentials or response from server.');
+      } catch (error) {
+        console.error('Login Error:', error);
+        Alert.alert('Login Error', 'An error occurred during login.');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Login Error:', error);
-      Alert.alert('Login Error', 'An error occurred during login.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const goToSignUp = () => {
-    router.push('signup'); // Navigate to Sign-Up screen
-  };
-
-  const goToForgotPassword = () => {
-    router.push('forgotPassword'); // Navigate to Forgot Password screen
-  };
+    },
+  });
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Log-in</Text>
-
-      {/* Input Fields */}
-      <TextInput
-        style={styles.input}
-        placeholder="Enter email/phone"
-        placeholderTextColor="#666"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Enter password"
-        placeholderTextColor="#666"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
+      {/* Logo */}
+      <Image
+        source={require('../assets/images/localKonnectLogo.png')}
+        style={styles.logo}
+        resizeMode="contain"
       />
 
-      {/* Login Button */}
-      <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Logging In...' : 'Log In'}</Text>
-      </TouchableOpacity>
+      {/* Form Container */}
+      <View style={styles.formContainer}>
+        {/* Email Field */}
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          value={formik.values.email}
+          onChangeText={(text) => formik.handleChange('email')(text)}
+          onBlur={formik.handleBlur('email')}
+          style={styles.input}
+          placeholder="Enter your email"
+          placeholderTextColor="#aaa"
+        />
+        {formik.touched.email && formik.errors.email && (
+          <Text style={styles.errorText}>{formik.errors.email}</Text>
+        )}
 
-      {/* Forgot Password Link */}
-      <TouchableOpacity onPress={goToForgotPassword}>
-        <Text style={styles.forgotPassword}>Forgot password?</Text>
-      </TouchableOpacity>
+        {/* Password Field */}
+        <Text style={styles.label}>Password</Text>
+        <View style={styles.passwordContainer}>
+          <TextInput
+            value={formik.values.password}
+            onChangeText={(text) => formik.handleChange('password')(text)}
+            onBlur={formik.handleBlur('password')}
+            style={styles.input}
+            placeholder="Enter your password"
+            placeholderTextColor="#aaa"
+            secureTextEntry={!isPasswordVisible}
+          />
+          <TouchableOpacity
+            style={styles.eyeIcon}
+            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+          >
+            <Ionicons
+              name={isPasswordVisible ? 'eye-off' : 'eye'}
+              size={24}
+              color="#aaa"
+            />
+          </TouchableOpacity>
+        </View>
+        {formik.touched.password && formik.errors.password && (
+          <Text style={styles.errorText}>{formik.errors.password}</Text>
+        )}
 
-      {/* Social Media Login */}
-      <Text style={styles.orText}>or Log in with</Text>
-      <View style={styles.socialButtons}>
-        <TouchableOpacity style={styles.socialButton}>
-          <Ionicons name="logo-google" size={24} color="#fff" />
+        {/* Forgot Password Link */}
+        <TouchableOpacity
+          onPress={() => router.push('forgotPassword')} // Replace 'forgotpassword' with the actual route
+          style={{ marginTop: 10 }}
+        >
+          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.socialButton}>
-          <Ionicons name="logo-facebook" size={24} color="#fff" />
+
+        {/* Login Button */}
+        <TouchableOpacity
+          style={styles.signUpButton}
+          onPress={formik.handleSubmit}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Login'}</Text>
         </TouchableOpacity>
+
+        {/* Social Login Buttons */}
+        <View style={styles.socialButtonsContainer}>
+          <TouchableOpacity style={styles.socialButton}>
+            <FontAwesome name="google" size={24} color="#DB4437" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.socialButton}>
+            <FontAwesome name="facebook" size={24} color="#4267B2" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Sign Up Link */}
+        <TouchableOpacity onPress={() => router.push('signup')}>
+          <Text style={styles.loginText}>Don't have an account? Sign Up</Text>
+        </TouchableOpacity>
+
+        {/* Display Backend Response */}
+        {/* {message && (
+          <View style={styles.backendResponseContainer}>
+            <Text style={styles.backendResponseText}>{message}</Text>
+          </View>
+        )} */}
       </View>
-
-      {/* Sign Up Link */}
-      <Text style={styles.signUpLink}>
-        Don't have an account?{' '}
-        <Text style={styles.signUpText} onPress={goToSignUp}>
-          Sign-up
-        </Text>
-      </Text>
     </View>
   );
 };
@@ -131,70 +164,87 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#e3f2fd', // Light blue background
+    backgroundColor: '#FFFFFF',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1e88e5', // Deep blue text
-    marginBottom: 30,
+  logo: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
+  },
+  formContainer: {
+    width: '100%',
+    padding: 20,
+    backgroundColor: '#217B95',
+    borderRadius: 10,
+  },
+  label: {
+    fontSize: 16,
+    color: '#fff',
+    marginBottom: 2,
   },
   input: {
     width: '100%',
-    padding: 15,
+    padding: 10,
     marginVertical: 10,
     backgroundColor: '#fff',
-    borderRadius: 8,
-    borderColor: '#1e88e5', // Deep blue border
-    borderWidth: 1,
-    fontSize: 16,
+    borderRadius: 5,
   },
-  loginButton: {
+  errorText: {
+    color: 'indianred',
+    alignSelf: 'flex-start',
+  },
+  forgotPasswordText: {
+    color: '#fff',
+    textAlign: 'right',
+    fontSize: 14,
+    textDecorationLine: 'underline',
+    marginBottom: 10,
+  },
+  signUpButton: {
     width: '100%',
     padding: 15,
-    backgroundColor: '#fbc02d', // Yellow background for button
+    backgroundColor: '#D8A15D',
     borderRadius: 8,
     alignItems: 'center',
     marginVertical: 20,
   },
   buttonText: {
-    color: '#1e88e5', // Blue text for button
+    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
-  forgotPassword: {
-    fontSize: 16,
-    color: '#1e88e5', // Link color matching Sign-Up
-    textDecorationLine: 'underline',
-  },
-  orText: {
-    fontSize: 16,
-    marginVertical: 10,
-    color: '#333',
-  },
-  socialButtons: {
+  socialButtonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
+    justifyContent: 'space-around',
+    marginVertical: 20,
   },
   socialButton: {
-    backgroundColor: '#1e88e5', // Blue background for social buttons
-    padding: 15,
-    borderRadius: 50,
-    marginHorizontal: 10,
+    width: 50,
+    height: 50,
+    backgroundColor: '#fff',
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 3,
   },
-  signUpLink: {
-    marginTop: 20,
+  loginText: {
+    color: '#D8A15D',
+    textAlign: 'center',
+    marginTop: 10,
     fontSize: 16,
-    color: '#333',
+    textDecorationLine: 'underline',
   },
-  signUpText: {
-    fontWeight: 'bold',
-    color: '#1e88e5', // Blue text for link
+  passwordContainer: {
+    position: 'relative',
+    marginVertical: 10,
   },
+  eyeIcon: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+  },
+ 
 });
 
 export default LoginScreen;

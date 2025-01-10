@@ -8,7 +8,7 @@ const handleApiError = (error) => {
 };
 
 // Ensure to define the BASE_URL
-export const BASE_URL = "https://job-portal-1-bdk6.onrender.com";
+export const BASE_URL = "https://localkonnectbackend.onrender.com";
 
 // Function to retrieve all posts
 export const _getAll = async (endpoint) => {

@@ -1,71 +1,138 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, TextInput, Dimensions } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { _create } from '../utils/apiUtils'; // Utility for API calls
 
-const VerifyOTPCreatePassword = () => {
-  const [otp, setOtp] = useState('');
-  const [timer, setTimer] = useState(180); // 3 minutes in seconds
-  const [resendEnabled, setResendEnabled] = useState(false);
-  const router = useRouter();
+const { width, height } = Dimensions.get('window'); // Get device dimensions
+
+const VerifyOtpCreatePassword = ({ route }) => {
+  const { email } = useLocalSearchParams(); // Access email passed from the signup screen
+  const [timer, setTimer] = useState(300); // 2 minutes countdown
+  const [otp, setOtp] = useState(''); // Single OTP string
+  const [otpExpired, setOtpExpired] = useState(false); // OTP expiration state
+  const [message, setMessage] = useState(''); // State to store the message from the backend
+  const router = useRouter(); // Use Expo Router
 
   useEffect(() => {
     if (timer > 0) {
-      const interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
-      return () => clearInterval(interval); // Clean up the interval
+      const interval = setInterval(() => {
+        setTimer((prevTime) => prevTime - 1);
+      }, 1000);
+      return () => clearInterval(interval);
     } else {
-      setResendEnabled(true); // Enable resend button after timer ends
+      setOtpExpired(true); // Mark OTP as expired when timer reaches 0
     }
   }, [timer]);
 
-  const handleVerifyOtp = () => {
-    if (!otp) {
-      Alert.alert("Error", "Please enter the OTP.");
-      return;
+  // Function to verify OTP using the utility function
+  const verifyOtp = async (otpString) => {
+    try {
+      // Make the API call for OTP verification
+      const response = await _create('/api/users/auth/signupverification', { email, otp: otpString });
+  
+      // Log the request and response for debugging
+      console.log('API Request:', { email, otp: otpString });
+      console.log('API Response:', response);
+  
+      // Assuming response.message is returned and the message indicates success
+      if (response.message && response.message.includes('successfully')) {
+        // Use the message from the backend response
+        Alert.alert('OTP Verified!', response.message || 'You are successfully verified.');
+        setMessage(response.message || 'OTP Verified successfully!');
+        router.push({
+          pathname: 'createPassword',
+          params: { otp: otpString, email }, // Pass both otp and email to the next screen
+        });
+      } else {
+        // Display the error message from the response
+        Alert.alert('Invalid OTP', 'Please enter the correct OTP.');
+        setMessage('Invalid OTP, please try again.');
+      }
+    } catch (error) {
+      console.log('Error during OTP verification:', error); // Log the error to the console
+      Alert.alert('Error', 'There was an issue with OTP verification.');
+      setMessage('Error with OTP verification, please try again.');
     }
-    console.log("OTP entered: ", otp);
-    router.push('/createPassword'); // Navigate to Reset Password screen
   };
+  
 
-  const handleResendOtp = () => {
-    setTimer(180); // Reset timer to 3 minutes
-    setResendEnabled(false);
-    console.log("Resend OTP clicked");
-    // Add logic for resending OTP
-  };
+  // Function to resend OTP using the utility function
+  const resendOtp = async () => {
+    try {
+      // const response = await _create('/resend-otp', { email });
+      // Log the API call for resending OTP
+      console.log('Resend OTP API Request:', { email });
 
-  const formatTime = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+      // Simulate successful OTP resend response
+      const response = { success: true };
+
+      if (response.success) {
+        Alert.alert('OTP Sent', 'We have sent a new OTP to your email.');
+        setTimer(120); // Reset timer to 2 minutes
+        setOtpExpired(false); // Reset OTP expiration status
+      } else {
+        Alert.alert('Error', 'Failed to resend OTP. Please try again.');
+      }
+    } catch (error) {
+      console.log('Error during OTP resend:', error);
+      Alert.alert('Error', 'There was an issue resending the OTP.');
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Verify OTP</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Enter OTP"
-        value={otp}
-        onChangeText={setOtp}
-        keyboardType="numeric"
+      {/* Logo */}
+      <Image
+        source={require('../assets/images/localKonnectLogo.png')} // Same logo path
+        style={styles.logo}
+        resizeMode="contain"
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleVerifyOtp}>
-        <Text style={styles.buttonText}>Verify OTP</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.timerText}>Time remaining: {formatTime(timer)}</Text>
-
-      <TouchableOpacity
-        style={[styles.resendButton, resendEnabled ? styles.resendButtonEnabled : styles.resendButtonDisabled]}
-        onPress={handleResendOtp}
-        disabled={!resendEnabled}
-      >
-        <Text style={resendEnabled ? styles.resendTextEnabled : styles.resendTextDisabled}>
-          Resend OTP
+      {/* OTP Verification Form */}
+      <View style={styles.formContainer}>
+        <Text style={styles.title}>OTP Verification</Text>
+        <Text style={styles.description}>
+          We sent a one-time password link to your email address {email}
         </Text>
-      </TouchableOpacity>
+        <Text style={styles.expiry}>
+          {otpExpired ? 'OTP has expired.' : `Expires in ${Math.floor(timer / 60)}:${timer % 60}`}
+        </Text>
+
+        {/* OTP Input Field */}
+        <TextInput
+          value={otp}
+          onChangeText={(text) => setOtp(text)}
+          keyboardType="numeric"
+          maxLength={6}
+          style={styles.otpInput}
+          placeholder="Enter OTP"
+          editable={!otpExpired} // Disable input if OTP is expired
+        />
+
+        {/* Verify OTP Button */}
+        <TouchableOpacity style={styles.nextButton} onPress={() => verifyOtp(otp)}>
+          <Text style={styles.buttonText}>Verify OTP</Text>
+        </TouchableOpacity>
+
+        {/* Response Message */}
+        {message ? <Text style={styles.responseMessage}>{message}</Text> : null}
+
+        {/* Resend Link and Contact */}
+        <View style={styles.footerContainer}>
+          {otpExpired ? (
+            <TouchableOpacity onPress={resendOtp}>
+              <Text style={styles.footerText}>OTP expired. Resend OTP</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={resendOtp}>
+              <Text style={styles.footerText}>Didn't receive OTP? Resend link</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => router.push('contact')}>
+            <Text style={styles.footerText}>Have a problem? Contact us</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 };
@@ -75,67 +142,78 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#e3f2fd', // Align background with SignUpScreen (light blue)
+    backgroundColor: '#FFFFFF',
+  },
+  logo: {
+    width: width * 0.4, // Responsive width
+    height: width * 0.4, // Responsive height
+    marginBottom: height * 0.05, // Responsive margin
+  },
+  formContainer: {
+    width: '90%',
+    maxWidth: 400, // Max width for large devices
+    padding: width * 0.05, // Responsive padding
+    backgroundColor: '#217B95',
+    borderRadius: 10,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1e88e5', // Deep blue (consistent with SignUpScreen)
-    marginBottom: 30,
+    fontSize: width * 0.06, // Responsive font size
+    color: '#fff',
+    marginBottom: 10,
+    textAlign: 'center',
   },
-  input: {
-    width: '100%',
-    padding: 15,
-    marginVertical: 10,
+  description: {
+    fontSize: width * 0.04, // Responsive font size
+    color: '#fff',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  expiry: {
+    fontSize: width * 0.04, // Responsive font size
+    color: '#fff',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  otpInput: {
+    width: width * 0.8, // Responsive width for OTP input
+    height: width * 0.12, // Responsive height for OTP input
     backgroundColor: '#fff',
-    borderRadius: 8,
-    borderColor: '#1e88e5', // Deep blue border
-    borderWidth: 1,
-    fontSize: 16,
+    borderRadius: 5,
+    textAlign: 'center',
+    fontSize: width * 0.06, // Responsive font size
+    marginBottom: 20,
   },
-  button: {
+  nextButton: {
     width: '100%',
-    padding: 15,
-    backgroundColor: '#fbc02d', // Yellow (align with SignUp button style)
+    padding: width * 0.05, // Responsive padding
+    backgroundColor: '#D8A15D',
     borderRadius: 8,
     alignItems: 'center',
     marginVertical: 20,
   },
   buttonText: {
-    color: '#1e88e5', // Blue text for button
-    fontSize: 18,
+    color: '#fff',
+    fontSize: width * 0.05, // Responsive font size
     fontWeight: 'bold',
   },
-  timerText: {
-    fontSize: 16,
-    color: '#1e88e5', // Deep blue text
-    marginVertical: 10,
-  },
-  resendButton: {
-    width: '100%',
-    padding: 15,
-    borderRadius: 8,
+  footerContainer: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginTop: 10,
   },
-  resendButtonEnabled: {
-    backgroundColor: '#fbc02d', // Yellow (consistent button styling)
+  footerText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: width * 0.035, // Responsive font size
+    textDecorationLine: 'underline',
+    marginVertical: 5,
   },
-  resendButtonDisabled: {
-    backgroundColor: '#bdbdbd', // Gray for disabled state
-  },
-  resendTextEnabled: {
-    color: '#1e88e5', // Blue text for enabled button
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  resendTextDisabled: {
-    color: '#757575', // Gray text for disabled button
-    fontSize: 18,
-    fontWeight: 'bold',
+  responseMessage: {
+    color: 'red',
+    textAlign: 'center',
+    fontSize: width * 0.04, // Responsive font size
+    marginTop: 10,
   },
 });
 
-
-export default VerifyOTPCreatePassword;
+export default VerifyOtpCreatePassword;
