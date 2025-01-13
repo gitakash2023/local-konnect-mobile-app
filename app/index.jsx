@@ -41,7 +41,7 @@ export default function Index() {
         return '/hr/(hrtabs)';
       case 'serviceprovider':
         // return '/service-provider/(serviceprovidertabs)';
-        return '/superadmin/(superadmintabs)';
+        return '/service-provider/(serviceprovidertabs)';
       case 'serviceprovideremployee':
         return '/service-provider-employee/(serviceprovideremployeetabs)';
       default:

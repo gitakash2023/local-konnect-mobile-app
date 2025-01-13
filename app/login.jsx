@@ -33,19 +33,23 @@ const LoginScreen = () => {
         if (response && response.token && response.user) {
           const { token, user } = response;
           const userType = user?.userType;
-
+          const email = user?.email; // Extract email if required
+          const userId = user?.id; // Extract user ID if required
+    
+          // Store token, userType, email, and userId in AsyncStorage
           await AsyncStorage.setItem('accessToken', token);
           await AsyncStorage.setItem('userType', userType);
-
+          await AsyncStorage.setItem('userEmail', email); // Store email if needed
+          await AsyncStorage.setItem('userId', userId); // Store user ID if needed
           switch (userType) {
-            case 'ADMIN':
-              router.push('/superadmin/(superadmintabs)');
+            case 'Admin':
+              router.push('/super-admin/(superadmintabs)');
               break;
             case 'ServiceProvider':
-              router.push('/admin/(ServiceProvider)');
+              router.push('/service-provider/(serviceprovidertabs)');
               break;
             case 'User':
-              router.push('/user/(usertabs)');
+              router.push('/end-user/(endusertabs)');
               break;
             default:
               console.warn('Unknown role:', userType);
