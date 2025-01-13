@@ -44,7 +44,7 @@ const Settings = ({ navigation }) => {
           onPress: async () => {
             try {
               await AsyncStorage.clear();
-              navigation.navigate('login'); // Navigate to Settings screen after logout
+              navigation.navigate('Settings'); // Navigate to Settings screen after logout
             } catch (error) {
               console.error('Error clearing AsyncStorage:', error);
             }
