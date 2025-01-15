@@ -1,16 +1,46 @@
+// UserManagementWithNavigation.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { NavigationContainer } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
+const Stack = createStackNavigator();
+
+// Screen Components
+const CreateTeam = () => (
+  <View style={styles.screenContainer}>
+    <Text>Create Team Screen</Text>
+  </View>
+);
+
+const ManageTeam = () => (
+  <View style={styles.screenContainer}>
+    <Text>Manage Team Screen</Text>
+  </View>
+);
+
+const TeamActivityLog = () => (
+  <View style={styles.screenContainer}>
+    <Text>Team Activity Log Screen</Text>
+  </View>
+);
+
+const AssignRoles = () => (
+  <View style={styles.screenContainer}>
+    <Text>Assign Roles & Permissions Screen</Text>
+  </View>
+);
+
+// UserManagement Screen with Navigation
 const UserManagement = () => {
   const navigation = useNavigation();
 
-  // List of options with icons
   const items = [
-    { title: 'Create User', screen: 'CreateUser', icon: 'person-add' },
-    { title: 'Manage Users', screen: 'ManageUsers', icon: 'group' },
-    { title: 'User Activity Log', screen: 'UserActivityLog', icon: 'timeline' },
+    { title: 'Create Team', screen: 'CreateTeam', icon: 'person-add' },
+    { title: 'Manage Team', screen: 'ManageTeam', icon: 'group' },
+    { title: 'Team Activity Log', screen: 'TeamActivityLog', icon: 'timeline' },
     { title: 'Assign Roles & Permissions', screen: 'AssignRoles', icon: 'lock' },
   ];
 
@@ -33,7 +63,20 @@ const UserManagement = () => {
   );
 };
 
-export default UserManagement;
+// Main Navigation Component
+const UserManagementWithNavigation = () => {
+  return (
+   
+      <Stack.Navigator initialRouteName="UserManagement">
+        <Stack.Screen name="UserManagement" component={UserManagement} />
+        <Stack.Screen name="CreateTeam" component={CreateTeam} />
+        <Stack.Screen name="ManageTeam" component={ManageTeam} />
+        <Stack.Screen name="TeamActivityLog" component={TeamActivityLog} />
+        <Stack.Screen name="AssignRoles" component={AssignRoles} />
+      </Stack.Navigator>
+    
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -71,4 +114,12 @@ const styles = StyleSheet.create({
   arrow: {
     marginLeft: 'auto',
   },
+  screenContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
 });
+
+export default UserManagementWithNavigation;

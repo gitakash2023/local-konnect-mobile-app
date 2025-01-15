@@ -3,16 +3,16 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 
 const Home = () => {
   const cards = [
-    { title: 'Total Users', value: '12,345' },
-    { title: 'Active Services', value: '150' },
-    { title: 'Pending Orders', value: '45' },
-    { title: 'Completed Orders', value: '1,230' },
-    { title: 'Revenue Overview', value: '$23,456' },
-    { title: 'Refund Requests', value: '8' },
-    { title: 'User Activity', value: 'Last login: 2 hours ago' },
-    { title: 'Service Performance', value: 'Top Service: Cleaning Services' },
-    { title: 'Notifications', value: '3 pending notifications' },
-    { title: 'System Health', value: 'System Uptime: 99.8%' },
+    { title: 'Total Services Offered', value: '25' },
+    { title: 'Active Bookings', value: '8' },
+    { title: 'Completed Services', value: '145' },
+    { title: 'Earnings This Month', value: '$4,230' },
+    { title: 'New Messages', value: '5' },
+    { title: 'Service Ratings', value: '4.8/5' },
+    { title: 'Pending Tasks', value: '3' },
+    { title: 'Top Service', value: 'Home Cleaning' },
+    { title: 'Availability Status', value: 'Online' },
+    { title: 'Service Requests', value: '2 new requests' },
   ];
 
   return (

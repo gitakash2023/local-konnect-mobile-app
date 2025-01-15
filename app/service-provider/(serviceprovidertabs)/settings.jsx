@@ -5,32 +5,18 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 
-// Create a Stack Navigator
+import AccountInfo from '../service-provider-component/setting-component/AccountInfo';
+import MyServices from '../service-provider-component/setting-component/MyServices';
+
+
 const Stack = createStackNavigator();
 
+// Settings Screen
 const Settings = ({ navigation }) => {
-  const [userEmail, setUserEmail] = useState(null);
-  const [userRole, setUserRole] = useState(null);
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const email = await AsyncStorage.getItem('userEmail');
-        const role = await AsyncStorage.getItem('userType');
-        if (email) setUserEmail(email);
-        if (role) setUserRole(role);
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      }
-    };
-
-    fetchUserData();
-  }, []);
-
   const settingsItems = [
     { title: 'Account Information', screen: 'AccountInfo' },
-    { title: 'Privacy Settings', screen: 'PrivacySettings' },
-    { title: 'Change Password', screen: 'ChangePassword' },
+    { title: 'My Services', screen: 'MyServices' },
+    // { title: 'Change Password', screen: 'ChangePassword' },
   ];
 
   const handleLogout = async () => {
@@ -44,7 +30,7 @@ const Settings = ({ navigation }) => {
           onPress: async () => {
             try {
               await AsyncStorage.clear();
-              navigation.navigate('Settings'); // Navigate to Settings screen after logout
+              navigation.replace('login');
             } catch (error) {
               console.error('Error clearing AsyncStorage:', error);
             }
@@ -57,13 +43,6 @@ const Settings = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {userEmail && userRole && (
-        <View style={styles.userInfo}>
-          <Text style={styles.userEmail}>Email: {userEmail}</Text>
-          <Text style={styles.userRole}>Role: {userRole}</Text>
-        </View>
-      )}
-
       {settingsItems.map((item, index) => (
         <TouchableOpacity
           key={index}
@@ -88,33 +67,14 @@ const Settings = ({ navigation }) => {
   );
 };
 
-const AccountInfo = () => (
-  <View style={styles.container}>
-    <Text>Account Information Screen</Text>
-  </View>
-);
-
-const PrivacySettings = () => (
-  <View style={styles.container}>
-    <Text>Privacy Settings Screen</Text>
-  </View>
-);
-
-const ChangePassword = () => (
-  <View style={styles.container}>
-    <Text>Change Password Screen</Text>
-  </View>
-);
-
+// AppNavigator with Stack.Screen for navigation
 const AppNavigator = () => (
-  
-    <Stack.Navigator initialRouteName="Settings">
-      <Stack.Screen name="Settings" component={Settings} />
-      <Stack.Screen name="AccountInfo" component={AccountInfo} />
-      <Stack.Screen name="PrivacySettings" component={PrivacySettings} />
-      <Stack.Screen name="ChangePassword" component={ChangePassword} />
-    </Stack.Navigator>
-  
+  <Stack.Navigator initialRouteName="Settings">
+    <Stack.Screen name="Settings" component={Settings} />
+    <Stack.Screen name="AccountInfo" component={AccountInfo} />
+    <Stack.Screen name="MyServices" component={MyServices} />
+    {/* <Stack.Screen name="ChangePassword" component={ChangePassword} /> */}
+  </Stack.Navigator>
 );
 
 export default AppNavigator;
@@ -124,24 +84,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#f4f4f4',
-  },
-  userInfo: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
-    marginBottom: 20,
-    borderRadius: 8,
-    elevation: 2,
-  },
-  userEmail: {
-    fontSize: 18,
-    color: '#333',
-    fontWeight: 'bold',
-  },
-  userRole: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 5,
   },
   listItem: {
     marginBottom: 10,
