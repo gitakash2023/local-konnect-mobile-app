@@ -1,266 +1,291 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FontAwesome } from '@expo/vector-icons'; // For action icons
-import { Button, TextInput } from 'react-native-paper'; // Import Paper components
-import { Formik } from 'formik';
-import * as Yup from 'yup'; // Import Yup for validation
+import React, { useEffect, useState } from "react";
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Alert, TextInput, Button, StyleSheet } from "react-native";
+import { fetchItems, createItem, updateItem, deleteItem } from "../../../../utils/apiUtils";
 
 const MyServices = () => {
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [services, setServices] = useState([]);
-  const [isPreview, setIsPreview] = useState(false);
-  const [selectedService, setSelectedService] = useState(''); // Store selected service
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [serviceName, setServiceName] = useState("");
+  const [description, setDescription] = useState("");
+  const [visitCharge, setVisitCharge] = useState("");
+  const [editServiceId, setEditServiceId] = useState(null); // Added state for editing a service
 
+  // Fetch services on component mount
   useEffect(() => {
-    // Load services from AsyncStorage on component mount
-    const loadServices = async () => {
-      try {
-        const savedServices = await AsyncStorage.getItem('services');
-        if (savedServices) {
-          setServices(JSON.parse(savedServices));
-        }
-      } catch (error) {
-        console.error('Error loading services from AsyncStorage:', error);
-      }
-    };
     loadServices();
   }, []);
 
-  // Save service to AsyncStorage
-  const saveService = async (values) => {
-    const newService = {
-      id: new Date().getTime().toString(),
-      name: values.serviceName,
-      description: values.serviceDescription,
-      charge: values.visitCharge,
+  const loadServices = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchItems("/api/services");
+      setServices(data);
+    } catch (err) {
+      console.error("Error fetching services:", err);
+      setError("Failed to load services. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!id) {
+      Alert.alert("Error", "Service ID is invalid.");
+      return;
+    }
+
+    Alert.alert("Delete Service", "Are you sure you want to delete this service?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        onPress: async () => {
+          try {
+            setLoading(true);
+            const response = await deleteItem(`/api/services/${id}`);
+            if (response.success) {
+              setServices(services.filter((service) => service.id !== id));
+            } else {
+              Alert.alert("Error", "Failed to delete service.");
+            }
+          } catch (err) {
+            console.error("Error deleting service:", err);
+            Alert.alert("Error", "Failed to delete service.");
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleAddService = async () => {
+    if (!serviceName || !description || !visitCharge) {
+      Alert.alert("Error", "Please fill in all the fields.");
+      return;
+    }
+
+    const newService = { 
+      name: serviceName, 
+      description, 
+      visitCharge: parseFloat(visitCharge) 
     };
 
-    const updatedServices = [...services, newService];
-    setServices(updatedServices);
+    if (isNaN(newService.visitCharge)) {
+      Alert.alert("Error", "Please enter a valid number for the visit charge.");
+      return;
+    }
 
     try {
-      await AsyncStorage.setItem('services', JSON.stringify(updatedServices));
-      setIsModalVisible(false); // Close modal after saving
-    } catch (error) {
-      console.error('Error saving service to AsyncStorage:', error);
+      setLoading(true);
+      const createdService = await createItem("/api/services", newService);
+      setServices([...services, createdService]);
+      setServiceName("");
+      setDescription("");
+      setVisitCharge("");
+    } catch (err) {
+      console.error("Error adding service:", err);
+      Alert.alert("Error", "Failed to add service.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Delete a service
-  const deleteService = async (serviceId) => {
-    const updatedServices = services.filter((service) => service.id !== serviceId);
-    setServices(updatedServices);
+  const handleEditService = async () => {
+    if (!serviceName || !description || !visitCharge) {
+      Alert.alert("Error", "Please fill in all the fields.");
+      return;
+    }
+
+    const updatedService = { 
+      name: serviceName, 
+      description, 
+      visitCharge: parseFloat(visitCharge) 
+    };
+
+    if (isNaN(updatedService.visitCharge)) {
+      Alert.alert("Error", "Please enter a valid number for the visit charge.");
+      return;
+    }
+
     try {
-      await AsyncStorage.setItem('services', JSON.stringify(updatedServices));
-    } catch (error) {
-      console.error('Error deleting service from AsyncStorage:', error);
+      setLoading(true);
+      const updatedServiceData = await updateItem(`/api/services/${editServiceId}`, updatedService);
+      setServices(services.map(service => service.id === editServiceId ? updatedServiceData : service));
+      setEditServiceId(null);
+      setServiceName("");
+      setDescription("");
+      setVisitCharge("");
+    } catch (err) {
+      console.error("Error editing service:", err);
+      Alert.alert("Error", "Failed to update service.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Edit a service
-  const editService = (serviceId) => {
-    const serviceToEdit = services.find((service) => service.id === serviceId);
-    setSelectedService(serviceToEdit.name);
-    setIsModalVisible(true);
-    setIsPreview(false); // Set edit mode to true
-  };
+  const renderService = ({ item }) => (
+    <View style={styles.serviceItem}>
+      <Text style={styles.serviceName}>{item.name}</Text>
+      <Text style={styles.serviceDescription}>{item.description}</Text>
+      <Text style={styles.serviceDescription}>Visit Charge: {item.visitCharge}</Text>
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => {
+            setServiceName(item.name);
+            setDescription(item.description);
+            setVisitCharge(item.visitCharge.toString());
+            setEditServiceId(item.id);
+          }}
+        >
+          <Text style={styles.buttonText}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDelete(item.id)}
+        >
+          <Text style={styles.buttonText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
-  // Open preview mode
-  const previewService = (serviceId) => {
-    const serviceToPreview = services.find((service) => service.id === serviceId);
-    setSelectedService(serviceToPreview.name);
-    setIsModalVisible(true);
-    setIsPreview(true); // Set preview mode to true
-  };
+  if (loading) {
+    return (
+      <View style={styles.centeredView}>
+        <ActivityIndicator size="large" color="#007BFF" />
+      </View>
+    );
+  }
 
-  // Form Validation Schema using Yup
-  const validationSchema = Yup.object().shape({
-    serviceName: Yup.string().required('Service name is required'),
-    serviceDescription: Yup.string().required('Service description is required'),
-    visitCharge: Yup.string().required('Visit charge is required').matches(/^\d+$/, 'Visit charge must be a number'),
-  });
+  if (error) {
+    return (
+      <View style={styles.centeredView}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <Button mode="contained" onPress={() => { setIsModalVisible(true); setIsPreview(false); }} style={styles.addButton}>
-        Add Service
-      </Button>
+      <Text style={styles.title}>My Services</Text>
 
-      {/* Modal for adding/editing service */}
-      <Modal visible={isModalVisible} animationType="slide" onRequestClose={() => setIsModalVisible(false)}>
-        <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>{isPreview ? 'Preview Service' : 'Add/Edit Service'}</Text>
+      <View style={styles.form}>
+        <TextInput
+          style={styles.input}
+          placeholder="Service Name"
+          value={serviceName}
+          onChangeText={setServiceName}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Description"
+          value={description}
+          onChangeText={setDescription}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Visit Charge"
+          keyboardType="numeric"
+          value={visitCharge}
+          onChangeText={setVisitCharge}
+        />
+        <Button
+          title={editServiceId ? "Update Service" : "Add Service"}
+          onPress={editServiceId ? handleEditService : handleAddService}
+        />
+      </View>
 
-          {/* Formik Form */}
-          <Formik
-            initialValues={{
-              serviceName: selectedService || '',
-              serviceDescription: '',
-              visitCharge: '',
-            }}
-            validationSchema={validationSchema}
-            onSubmit={saveService}
-          >
-            {({ values, handleChange, handleBlur, handleSubmit, touched, errors }) => (
-              <>
-                <TextInput
-                  label="Service Name"
-                  style={styles.input}
-                  value={values.serviceName}
-                  onChangeText={handleChange('serviceName')}
-                  onBlur={handleBlur('serviceName')}
-                  editable={!isPreview} // Disable input in preview mode
-                  error={touched.serviceName && errors.serviceName}
-                />
-                {touched.serviceName && errors.serviceName && (
-                  <Text style={styles.errorText}>{errors.serviceName}</Text>
-                )}
-
-                <TextInput
-                  label="Service Description"
-                  style={styles.input}
-                  value={values.serviceDescription}
-                  onChangeText={handleChange('serviceDescription')}
-                  onBlur={handleBlur('serviceDescription')}
-                  editable={!isPreview} // Disable input in preview mode
-                  error={touched.serviceDescription && errors.serviceDescription}
-                />
-                {touched.serviceDescription && errors.serviceDescription && (
-                  <Text style={styles.errorText}>{errors.serviceDescription}</Text>
-                )}
-
-                <TextInput
-                  label="Visit Charge"
-                  style={styles.input}
-                  value={values.visitCharge}
-                  onChangeText={handleChange('visitCharge')}
-                  onBlur={handleBlur('visitCharge')}
-                  keyboardType="numeric"
-                  editable={!isPreview} // Disable input in preview mode
-                  error={touched.visitCharge && errors.visitCharge}
-                />
-                {touched.visitCharge && errors.visitCharge && (
-                  <Text style={styles.errorText}>{errors.visitCharge}</Text>
-                )}
-
-                {!isPreview && (
-                  <Button mode="contained" onPress={handleSubmit} style={styles.saveButton} labelStyle={styles.saveButtonText}>
-                    Save
-                  </Button>
-                )}
-                <Button mode="text" onPress={() => setIsModalVisible(false)} color="red">
-                  Cancel
-                </Button>
-              </>
-            )}
-          </Formik>
-        </View>
-      </Modal>
-
-      {/* List of services */}
       <FlatList
         data={services}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.serviceItem}>
-            <Text style={styles.serviceText}>{item.name}</Text>
-            <Text style={styles.serviceText}>{item.description}</Text>
-            <Text style={styles.serviceText}>₹{item.charge}</Text>
-
-            <View style={styles.serviceActions}>
-              <TouchableOpacity onPress={() => editService(item.id)} style={styles.actionButton}>
-                <FontAwesome name="edit" size={16} color="#fff" />
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => previewService(item.id)} style={styles.actionButton}>
-                <FontAwesome name="eye" size={16} color="#fff" />
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => deleteService(item.id)} style={styles.actionButton}>
-                <FontAwesome name="trash" size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
+        renderItem={renderService}
+        contentContainerStyle={styles.list}
       />
     </View>
   );
 };
 
-export default MyServices;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f4f4f9', // Light blue background color
+    backgroundColor: "#F5F5F5",
+    padding: 16,
   },
-  addButton: {
-    marginBottom: 20,
-    backgroundColor: '#3b82f6', // Blue button color
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: "center",
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#3b82f6', // Blue title color
-  },
-  input: {
-    marginBottom: 15,
-    backgroundColor: '#f0f8ff', // Light navy blue background
-    borderWidth: 1,
-    borderColor: '#1e3a8a', // Light navy blue border
-    borderRadius: 5,
-    paddingLeft: 10,
-    fontSize: 16,
-    color: '#333', // Text color
-  },
-  saveButton: {
-    backgroundColor: '#1e3a8a', // Navy blue button color
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonText: {
-    color: '#fff', // White text color for contrast
-    fontSize: 16,
-    fontWeight: 'bold',
+  list: {
+    paddingBottom: 80,
   },
   serviceItem: {
-    padding: 15,
-    marginBottom: 10,
-    backgroundColor: '#fff',
-    borderRadius: 5,
+    backgroundColor: "#FFF",
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 2,
   },
-  serviceText: {
-    fontSize: 16,
-    color: '#333',
+  serviceName: {
+    fontSize: 18,
+    fontWeight: "bold",
   },
-  serviceActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
+  serviceDescription: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 4,
   },
-  actionButton: {
-    padding: 5,
-    backgroundColor: '#007BFF',
-    borderRadius: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  actions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  editButton: {
+    backgroundColor: "#007BFF",
+    padding: 8,
+    borderRadius: 4,
+  },
+  deleteButton: {
+    backgroundColor: "#FF0000",
+    padding: 8,
+    borderRadius: 4,
+  },
+  buttonText: {
+    color: "#FFF",
+    fontSize: 14,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   errorText: {
-    color: 'red',
-    fontSize: 12,
+    fontSize: 16,
+    color: "#FF0000",
+    textAlign: "center",
+  },
+  form: {
+    marginBottom: 20,
+  },
+  input: {
+    height: 40,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 4,
+    marginBottom: 12,
+    paddingLeft: 8,
   },
 });
+
+export default MyServices;

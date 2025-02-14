@@ -1,5 +1,6 @@
+// Updated API Utils with Token Handling
 import axios from "axios";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Function to handle API errors
 const handleApiError = (error) => {
@@ -7,20 +8,12 @@ const handleApiError = (error) => {
   throw new Error("An error occurred while communicating with the API");
 };
 
-// Ensure to define the BASE_URL
+// Base URL for the API
 export const BASE_URL = "https://localkonnectbackend.onrender.com";
 
-// Function to retrieve all posts
-export const _getAll = async (endpoint) => {
-  try {
-    const response = await axios.get(`${BASE_URL}${endpoint}`);
-    return response.data;
-  } catch (error) {
-    handleApiError(error);
-  }
-};
 
-// Function to create a new post
+
+
 export const _create = async (endpoint, postData) => {
   try {
     console.log("Sending request to:", `${BASE_URL}${endpoint}`);
@@ -31,46 +24,41 @@ export const _create = async (endpoint, postData) => {
     handleApiError(error);
   }
 };
-
-
-
-// Function to retrieve a single post by ID
-export const _getById = async (endpoint, id) => {
+const getToken = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}${endpoint}/${id}`);
-    console.log(response.data);
+    const token = await AsyncStorage.getItem('accessToken');
+    if (!token) {
+      throw new Error('No token found');
+    }
+    return token;
+  } catch (error) {
+    console.error('Error fetching token:', error);
+    return null;
+  }
+};
+
+
+// Generic API request handler
+const apiRequest = async (method, endpoint, id = '', data = null) => {
+  try {
+    const token = await getToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};  // Add 'Bearer' before the token
+    const url = id ? `${BASE_URL}${endpoint}/${id}` : `${BASE_URL}${endpoint}`;
+    const response = await axios({
+      method,
+      url,
+      data,
+      headers,
+    });
     return response.data;
   } catch (error) {
-    handleApiError(error);
+    console.error('API Error:', error);
+    throw error.response ? error.response.data : error.message;
   }
 };
 
-// Function to update a post (ID passed as URL parameter)
-export const _update = async (endpoint, id, postData) => {
-  console.log(postData);
-
-  try {
-    const response = await axios.put(
-      `${BASE_URL}${endpoint}/${id}`, // ID passed as a URL parameter
-      postData, // Remaining data in the request body
-      {
-        headers: {
-          "Content-Type": "multipart/form-data", // Ensure correct content type if using FormData
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    handleApiError(error);
-  }
-};
-
-// Function to delete a post by ID (ID passed as URL parameter)
-export const _delete = async (endpoint, id) => {
-  try {
-    await axios.delete(`${BASE_URL}${endpoint}/${id}`); // ID passed as a URL parameter
-    return true;
-  } catch (error) {
-    handleApiError(error);
-  }
-};
+// CRUD operations
+export const fetchItems = (endpoint, id = '') => apiRequest('GET', endpoint, id);
+export const createItem = (endpoint, data) => apiRequest('POST', endpoint, '', data);
+export const updateItem = (endpoint, id, data) => apiRequest('PUT', endpoint, id, data);
+export const deleteItem = (endpoint, id) => apiRequest('DELETE', endpoint, id);
